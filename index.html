@@ -271,9 +271,11 @@
             // dateTime はJST時刻文字列 → UTC msに変換
             const serverMs = new Date(data.dateTime + '+09:00').getTime() + rtt / 2; // 片道分補正
             serverOffset = serverMs - localAfter;
+            const offsetSec = (serverOffset / 1000).toFixed(3);
+            const offsetStr = serverOffset >= 0 ? `+${offsetSec}` : `${offsetSec}`;
             document.getElementById('ntpDot').style.background = 'var(--green)';
             document.getElementById('ntpDot').style.boxShadow = '0 0 8px var(--green)';
-            document.getElementById('ntpText').textContent = `NTP同期済 (RTT: ${rtt}ms)`;
+            document.getElementById('ntpText').textContent = `NTP同期済 (RTT: ${rtt}ms / ローカルのズレ: ${offsetStr}s)`;
         } catch (e) {
             document.getElementById('ntpDot').style.background = 'var(--red)';
             document.getElementById('ntpDot').style.boxShadow = 'none';

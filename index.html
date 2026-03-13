@@ -264,7 +264,7 @@
     async function syncNTP() {
         const localBefore = Date.now();
         try {
-            const res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Tokyo');
+            const res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Tokyo', { cache: 'no-store' });
             const localAfter = Date.now();
             const rtt = localAfter - localBefore;
             const data = await res.json();

@@ -271,15 +271,25 @@
     <script>
     'use strict';
 
+    // --- DOM Cache ---
+    const elClock      = document.getElementById('clock');
+    const elStatusDot  = document.getElementById('statusDot');
+    const elStatusText = document.getElementById('statusText');
+    const elNtpDot     = document.getElementById('ntpDot');
+    const elNtpText    = document.getElementById('ntpText');
+    const elVolWarning = document.getElementById('volWarning');
+    const elMainBtn    = document.getElementById('mainBtn');
+    const elFrequency  = document.getElementById('frequency');
+
     // --- State ---
     let audioCtx = null;
     let oscillator = null;
     let gainNode = null;
     let isRunning = false;
     let scheduleTimer = null;
-    let displayInterval = null;
     let currentBits = null;
     let currentMinuteAudioStart = 0;
+    let lastDisplayedSec = -1;
 
     // --- NTP via HTTP ---
     let serverOffset = 0; // サーバーUTC ms - ローカルDate.now() ms
@@ -297,13 +307,13 @@
             serverOffset = serverMs - localAfter;
             const offsetSec = (serverOffset / 1000).toFixed(3);
             const offsetStr = serverOffset >= 0 ? `+${offsetSec}` : `${offsetSec}`;
-            document.getElementById('ntpDot').style.background = 'var(--green)';
-            document.getElementById('ntpDot').style.boxShadow = '0 0 8px var(--green)';
-            document.getElementById('ntpText').textContent = `NTP同期済 (RTT: ${rtt}ms / ローカルのズレ: ${offsetStr}s)`;
+            elNtpDot.style.background = 'var(--green)';
+            elNtpDot.style.boxShadow = '0 0 8px var(--green)';
+            elNtpText.textContent = `NTP同期済 (RTT: ${rtt}ms / ローカルのズレ: ${offsetStr}s)`;
         } catch (e) {
-            document.getElementById('ntpDot').style.background = 'var(--red)';
-            document.getElementById('ntpDot').style.boxShadow = 'none';
-            document.getElementById('ntpText').textContent = 'NTP同期エラー（ローカル時刻使用中）';
+            elNtpDot.style.background = 'var(--red)';
+            elNtpDot.style.boxShadow = 'none';
+            elNtpText.textContent = 'NTP同期エラー（ローカル時刻使用中）';
         }
     }
 
@@ -420,16 +430,19 @@
 
     function updateDisplay() {
         const jst = getJST();
-        const h = String(jst.getUTCHours()).padStart(2, '0');
-        const m = String(jst.getUTCMinutes()).padStart(2, '0');
-        const s = String(jst.getUTCSeconds()).padStart(2, '0');
+        const h  = String(jst.getUTCHours()).padStart(2, '0');
+        const m  = String(jst.getUTCMinutes()).padStart(2, '0');
+        const s  = String(jst.getUTCSeconds()).padStart(2, '0');
         const ms = String(jst.getUTCMilliseconds()).padStart(3, '0');
-        document.getElementById('clock').textContent = `${h}:${m}:${s}.${ms} JST`;
+        elClock.textContent = `${h}:${m}:${s}.${ms} JST`;
 
         if (!isRunning || !currentBits) return;
 
         const sec = jst.getUTCSeconds();
-        document.getElementById('statusText').textContent = `送信中 — ${m}分${s}秒目`;
+        if (sec === lastDisplayedSec) return; // 秒が変わったときだけbit-gridを更新
+        lastDisplayedSec = sec;
+
+        elStatusText.textContent = `送信中 — ${m}分${s}秒目`;
 
         for (let i = 0; i < 60; i++) {
             const el = document.getElementById(`b${i}`);
@@ -459,7 +472,7 @@
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
-        oscillator.frequency.value = parseInt(document.getElementById('frequency').value);
+        oscillator.frequency.value = parseInt(elFrequency.value);
         oscillator.type = 'sine';
         gainNode.gain.value = 1.0;
         oscillator.start();
@@ -481,36 +494,31 @@
         const msUntilEnd = (60 - sec) * 1000 - ms;
         scheduleTimer = setTimeout(scheduleNext, Math.max(0, msUntilEnd - 2000));
 
-        let rafId;
-        function rafLoop() { updateDisplay(); rafId = requestAnimationFrame(rafLoop); }
-        rafId = requestAnimationFrame(rafLoop);
-        displayInterval = { cancel: () => cancelAnimationFrame(rafId) };
-
         // 毎秒サーバーから最新時刻を取得
         syncNTP();
         ntpSyncTimer = setInterval(syncNTP, 1000);
 
-        document.getElementById('mainBtn').textContent = '■ 停止';
-        document.getElementById('mainBtn').classList.add('stop');
-        document.getElementById('statusDot').classList.add('active');
-        document.getElementById('statusText').textContent = '送信中...';
-        document.getElementById('volWarning').classList.add('show');
+        elMainBtn.textContent = '■ 停止';
+        elMainBtn.classList.add('stop');
+        elStatusDot.classList.add('active');
+        elStatusText.textContent = '送信中...';
+        elVolWarning.classList.add('show');
     }
 
     function stop() {
         isRunning = false;
-        if (scheduleTimer)   clearTimeout(scheduleTimer);
-        if (displayInterval) displayInterval.cancel();
-        if (ntpSyncTimer)    clearInterval(ntpSyncTimer);
+        lastDisplayedSec = -1;
+        if (scheduleTimer) clearTimeout(scheduleTimer);
+        if (ntpSyncTimer)  clearInterval(ntpSyncTimer);
         if (oscillator) { try { oscillator.stop(); } catch (e) {} }
         if (audioCtx)   audioCtx.close();
         oscillator = null; gainNode = null; audioCtx = null; currentBits = null;
 
-        document.getElementById('mainBtn').textContent = '▶ 開始';
-        document.getElementById('mainBtn').classList.remove('stop');
-        document.getElementById('statusDot').classList.remove('active');
-        document.getElementById('statusText').textContent = '停止中';
-        document.getElementById('volWarning').classList.remove('show');
+        elMainBtn.textContent = '▶ 開始';
+        elMainBtn.classList.remove('stop');
+        elStatusDot.classList.remove('active');
+        elStatusText.textContent = '停止中';
+        elVolWarning.classList.remove('show');
 
         for (let i = 0; i < 60; i++) {
             document.getElementById(`b${i}`).className = 'bit-cell';

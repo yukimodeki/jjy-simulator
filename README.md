@@ -99,6 +99,7 @@ https://yukimodeki.github.io/jjy-simulator/ をブラウザで開きます。
 | 周波数 | 特徴 |
 |--------|------|
 | 1 kHz | 音が聞こえやすい（低周波） |
+| 3 kHz | 低周波寄りのバランス型 |
 | 5 kHz | バランス型 |
 | **10 kHz** | **推奨。多くの環境で有効** |
 | 15〜20 kHz | ほぼ聞こえない（高周波） |
@@ -142,9 +143,11 @@ https://yukimodeki.github.io/jjy-simulator/ をブラウザで開きます。
 
 - **使用技術**: HTML / CSS / JavaScript（Web Audio API）
 - **対応ブラウザ**: Chrome, Firefox, Safari, Edge（最新版）
-- **時刻基準**: `Date.now()` をJSTに変換（UTC+9）
+- **対応端末**: PC・スマートフォン・タブレット
+- **時刻基準**: [timeapi.io](https://timeapi.io) 経由でNTP同期（毎秒取得・RTT補正済み）
 - **符号化方式**: JJY時刻符号（BCD + マーカー + パリティ）
 - **音声生成**: `OscillatorNode` + `GainNode` による振幅変調
+- **フォント**: Noto Sans JP / 游ゴシック
 
 ---
 

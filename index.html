@@ -397,7 +397,8 @@
         const h = String(jst.getUTCHours()).padStart(2, '0');
         const m = String(jst.getUTCMinutes()).padStart(2, '0');
         const s = String(jst.getUTCSeconds()).padStart(2, '0');
-        document.getElementById('clock').textContent = `${h}:${m}:${s} JST`;
+        const ms = String(jst.getUTCMilliseconds()).padStart(3, '0');
+        document.getElementById('clock').textContent = `${h}:${m}:${s}.${ms} JST`;
 
         if (!isRunning || !currentBits) return;
 

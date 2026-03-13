@@ -264,7 +264,7 @@
     async function syncNTP() {
         const localBefore = Date.now();
         try {
-            const res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Tokyo', { cache: 'no-store' });
+            const res = await fetch(`https://timeapi.io/api/time/current/zone?timeZone=Asia/Tokyo&_=${localBefore}`, { cache: 'no-store' });
             const localAfter = Date.now();
             const rtt = localAfter - localBefore;
             const data = await res.json();
@@ -455,7 +455,10 @@
         const msUntilEnd = (60 - sec) * 1000 - ms;
         scheduleTimer = setTimeout(scheduleNext, Math.max(0, msUntilEnd - 2000));
 
-        displayInterval = setInterval(updateDisplay, 100);
+        let rafId;
+        function rafLoop() { updateDisplay(); rafId = requestAnimationFrame(rafLoop); }
+        rafId = requestAnimationFrame(rafLoop);
+        displayInterval = { cancel: () => cancelAnimationFrame(rafId) };
 
         // 毎秒サーバーから最新時刻を取得
         syncNTP();
@@ -471,7 +474,7 @@
     function stop() {
         isRunning = false;
         if (scheduleTimer)   clearTimeout(scheduleTimer);
-        if (displayInterval) clearInterval(displayInterval);
+        if (displayInterval) displayInterval.cancel();
         if (ntpSyncTimer)    clearInterval(ntpSyncTimer);
         if (oscillator) { try { oscillator.stop(); } catch (e) {} }
         if (audioCtx)   audioCtx.close();
@@ -490,7 +493,7 @@
 
     // Init
     initGrid();
-    setInterval(updateDisplay, 100);
+    (function clockLoop() { updateDisplay(); requestAnimationFrame(clockLoop); })();
     syncNTP(); // ページ読み込み時に初回同期
     </script>
 </body>

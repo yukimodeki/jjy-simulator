@@ -186,6 +186,11 @@
         <span id="statusText">停止中</span>
     </div>
 
+    <div class="status-bar" style="font-size:0.8em;">
+        <div class="dot" id="ntpDot"></div>
+        <span id="ntpText">NTP未同期</span>
+    </div>
+
     <div class="volume-warning" id="volWarning">⚠ 音量を最大にしてください</div>
 
     <div class="controls">
@@ -252,9 +257,34 @@
     let currentBits = null;
     let currentMinuteAudioStart = 0;
 
+    // --- NTP via HTTP ---
+    let serverOffset = 0; // サーバーUTC ms - ローカルDate.now() ms
+    let ntpSyncTimer = null;
+
+    async function syncNTP() {
+        const localBefore = Date.now();
+        try {
+            const res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Tokyo');
+            const localAfter = Date.now();
+            const rtt = localAfter - localBefore;
+            const data = await res.json();
+            // dateTime はJST時刻文字列 → UTC msに変換
+            const serverMs = new Date(data.dateTime + '+09:00').getTime() + rtt / 2; // 片道分補正
+            serverOffset = serverMs - localAfter;
+            document.getElementById('ntpDot').style.background = 'var(--green)';
+            document.getElementById('ntpDot').style.boxShadow = '0 0 8px var(--green)';
+            document.getElementById('ntpText').textContent = `NTP同期済 (RTT: ${rtt}ms)`;
+        } catch (e) {
+            document.getElementById('ntpDot').style.background = 'var(--red)';
+            document.getElementById('ntpDot').style.boxShadow = 'none';
+            document.getElementById('ntpText').textContent = 'NTP同期エラー（ローカル時刻使用中）';
+        }
+    }
+
     // --- Time ---
     function getJST() {
-        return new Date(Date.now() + 9 * 60 * 60 * 1000);
+        // serverOffset でサーバーUTCに補正 → +9h でJST
+        return new Date(Date.now() + serverOffset + 9 * 60 * 60 * 1000);
     }
 
     function getDayOfYear(d) {
@@ -426,6 +456,10 @@
 
         displayInterval = setInterval(updateDisplay, 100);
 
+        // 毎秒サーバーから最新時刻を取得
+        syncNTP();
+        ntpSyncTimer = setInterval(syncNTP, 1000);
+
         document.getElementById('mainBtn').textContent = '■ 停止';
         document.getElementById('mainBtn').classList.add('stop');
         document.getElementById('statusDot').classList.add('active');
@@ -437,6 +471,7 @@
         isRunning = false;
         if (scheduleTimer)   clearTimeout(scheduleTimer);
         if (displayInterval) clearInterval(displayInterval);
+        if (ntpSyncTimer)    clearInterval(ntpSyncTimer);
         if (oscillator) { try { oscillator.stop(); } catch (e) {} }
         if (audioCtx)   audioCtx.close();
         oscillator = null; gainNode = null; audioCtx = null; currentBits = null;
@@ -455,6 +490,7 @@
     // Init
     initGrid();
     setInterval(updateDisplay, 100);
+    syncNTP(); // ページ読み込み時に初回同期
     </script>
 </body>
 </html>
